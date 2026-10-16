@@ -276,6 +276,25 @@ def build_portfolio(portfolio, thai):
         })
         for d, v in gold_series:
             history.setdefault(d, {})[holdings[-1]["code"]] = v * g["baht_weight"]
+    if portfolio.get("crypto"):
+        usdthb = dict(yahoo_series("THB=X"))
+    for c in portfolio.get("crypto", []):
+        # Yahoo has no THB pairs, so convert the USD price with the USD/THB rate of the same day
+        s, fx = [], None
+        for d, v in yahoo_series(c["symbol"]):
+            fx = usdthb.get(d, fx)
+            if fx:
+                s.append((d, v * fx))
+        if not s:
+            print(f"  ! no price for {c['symbol']}", file=sys.stderr)
+        m = metrics(s)
+        holdings.append({
+            "code": c["code"], "name": c.get("name", f"{c['code']} (ราคา USD × USD/THB)"),
+            "units": c["units"], "cost": c["cost"], "nav": m["last"] if m else None,
+            "nav_date": m["date"] if m else None, "m": m, "spark": spark(s), "found": bool(s),
+        })
+        for d, v in s:
+            history.setdefault(d, {})[c["code"]] = v * c["units"]
     for f in portfolio.get("funds", []):
         info = thai["funds"].get(f["code"])
         s = to_series(info["navs"]) if info else []

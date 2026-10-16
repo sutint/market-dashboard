@@ -231,7 +231,7 @@ function render(data) {
   });
   if (hasPort) {
     const el = $("#pchart");
-    if (el) lineChart(el, data.portfolio.history, { h: 220, axis: true, label: "มูลค่ากองทุนรวม + ทอง (ไม่รวม PVD)", digits: 0 });
+    if (el) lineChart(el, data.portfolio.history, { h: 220, axis: true, label: "มูลค่าพอร์ต (ไม่รวม PVD)", digits: 0 });
   }
   document.querySelectorAll("table").forEach(sortable);
   let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => render(data), 200); }, { once: true });
@@ -271,7 +271,7 @@ function portfolioHTML(p) {
 
   const rows = H.map((h, i) => `<tr data-name="${esc(h.code)}" data-value="${h.value ?? 0}" data-pl="${h.pl ?? -1e15}" data-plp="${h.pl != null ? h.pl / h.costV * 100 : -1e9}" data-d1="${h.m?.d1 ?? -1e9}" data-ytd="${h.m?.ytd ?? -1e9}">
     <td><div class="nm">${esc(h.code)}</div><div class="sm">${esc(h.name)}</div></td>
-    <td class="num">${fmt(h.units, 4)}</td>
+    <td class="num">${fmt(h.units, h.units < 1 ? 8 : 4)}</td>
     <td class="num">${fmt(h.cost ?? (h.cost_total != null ? h.cost_total / h.units : null), 4)}</td>
     <td class="num">${fmt(h.nav, 4)}<div class="sm">${thDate(h.nav_date)}${h.manual ? " · กรอกเอง" : ""}</div></td>
     <td class="num">${fmt(h.value)}</td>
@@ -289,7 +289,7 @@ function portfolioHTML(p) {
   </div>
   ${missing.length ? `<p class="warn">ไม่พบ NAV ของ: ${missing.map(h => esc(h.code)).join(", ")} — ตรวจสอบรหัสกองทุน</p>` : ""}
   <div class="grid2">
-    <div class="card"><h2 style="font-size:14px;color:var(--text-2);font-weight:500">มูลค่ากองทุนรวม + ทอง 1 ปี (คิดจากจำนวนที่ถือปัจจุบัน ไม่รวม PVD)</h2><div class="chart" id="pchart"></div></div>
+    <div class="card"><h2 style="font-size:14px;color:var(--text-2);font-weight:500">มูลค่ากองทุนรวม ทอง และคริปโต 1 ปี (คิดจากจำนวนที่ถือปัจจุบัน ไม่รวม PVD)</h2><div class="chart" id="pchart"></div></div>
     <div class="card"><h2 style="font-size:14px;color:var(--text-2);font-weight:500">สัดส่วนพอร์ต</h2>
       <div class="alloc">${order.map(h => `<div style="flex:${h.value};background:${colorOf[h.code]}" title="${esc(h.code)} ${fmt(h.value / total * 100, 1)}%"></div>`).join("")}</div>
       <div class="legend">${order.map(h => `<div class="row"><span class="sw" style="background:${colorOf[h.code]}"></span>${esc(h.code)}<span class="pct num">${fmt(h.value, 0)} · ${fmt(h.value / total * 100, 1)}%</span></div>`).join("")}</div>
