@@ -63,6 +63,22 @@ tr:last-child td { border-bottom: 0; }
 tbody tr:hover { background: var(--surface-2); }
 td .nm { font-weight: 500; } td .sm { color: var(--muted); font-size: 12px; }
 td.spark { width: 130px; padding-top: 4px; padding-bottom: 4px; }
+.ptbl { table-layout: fixed; font-size: 13px; }
+.ptbl th, .ptbl td { padding: 6px 6px; }
+.ptbl th:first-child { width: 34%; }
+.ptbl td.fund { white-space: normal; }
+.ptbl td .sm.clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ptbl td .sm { font-size: 11px; white-space: normal; }
+@media (max-width: 720px) {
+  .ptbl .c-units, .ptbl .c-nav { display: none; }
+  .ptbl { font-size: 11.5px; }
+  .ptbl th, .ptbl td { padding: 6px 3px; }
+  .ptbl td .sm { font-size: 10.5px; }
+  .ptbl td.fund .nm { overflow-wrap: anywhere; }
+  .ptbl th { font-size: 11px; white-space: normal; }
+  .ptbl th:first-child { width: 30%; }
+  #portfolio .card:has(> .ptbl) { padding: 8px; }
+}
 .grid2 { display: grid; grid-template-columns: 1fr; gap: 12px; }
 @media (min-width: 900px) { .grid2 { grid-template-columns: 1.4fr 1fr; } }
 .chart { position: relative; }
@@ -141,7 +157,7 @@ const autoDigits = v => v == null ? 2 : Math.abs(v) >= 1000 ? 2 : Math.abs(v) >=
 const cls = v => v == null || Math.abs(v) < 0.005 ? "flat" : v > 0 ? "up" : "down";
 const chg = (v, suffix = "%") => v == null ? `<span class="flat">–</span>`
   : `<span class="${cls(v)}">${v > 0.005 ? "▲" : v < -0.005 ? "▼" : ""} ${fmt(Math.abs(v))}${suffix}</span>`;
-const signed = v => v == null ? "–" : `<span class="${cls(v)}">${v > 0 ? "+" : v < 0 ? "−" : ""}${fmt(Math.abs(v))}</span>`;
+const signed = (v, d = 2) => v == null ? "–" : `<span class="${cls(v)}">${v > 0 ? "+" : v < 0 ? "−" : ""}${fmt(Math.abs(v), d)}</span>`;
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const thDate = iso => iso ? new Date(iso + "T00:00:00").toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" }) : "–";
 
@@ -270,16 +286,12 @@ function portfolioHTML(p) {
   const missing = H.filter(h => !h.found);
 
   const rows = H.map((h, i) => `<tr data-name="${esc(h.code)}" data-value="${h.value ?? 0}" data-pl="${h.pl ?? -1e15}" data-plp="${h.pl != null ? h.pl / h.costV * 100 : -1e9}" data-d1="${h.m?.d1 ?? -1e9}" data-ytd="${h.m?.ytd ?? -1e9}">
-    <td><div class="nm">${esc(h.code)}</div><div class="sm">${esc(h.name)}</div></td>
-    <td class="num">${fmt(h.units, h.units < 1 ? 8 : 4)}</td>
-    <td class="num">${fmt(h.cost ?? (h.cost_total != null ? h.cost_total / h.units : null), 4)}</td>
-    <td class="num">${fmt(h.nav, 4)}<div class="sm">${thDate(h.nav_date)}${h.manual ? " · กรอกเอง" : ""}</div></td>
-    <td class="num">${fmt(h.value)}</td>
-    <td class="num">${signed(h.pl)}</td>
-    <td class="num">${h.pl != null ? chg(h.pl / h.costV * 100) : "–"}</td>
-    <td class="num">${chg(h.m?.d1)}</td>
-    <td class="num">${chg(h.m?.ytd)}</td>
-    <td class="spark"><div class="chart" data-spark="f:${i}"></div></td></tr>`).join("");
+    <td class="fund"><div class="nm">${esc(h.code)}</div><div class="sm clip" title="${esc(h.name)}">${esc(h.name)}</div></td>
+    <td class="num c-units">${fmt(h.units, h.units < 1 ? 8 : 4)}<div class="sm">ทุน ${(c => fmt(c, c >= 1000 ? 0 : 4))(h.cost ?? (h.cost_total != null ? h.cost_total / h.units : null))}</div></td>
+    <td class="num c-nav">${fmt(h.nav, h.nav >= 1000 ? 0 : 4)}<div class="sm">${thDate(h.nav_date)}${h.manual ? " · กรอกเอง" : ""}</div></td>
+    <td class="num">${fmt(h.value, 0)}</td>
+    <td class="num">${signed(h.pl, 0)}<div class="sm">${h.pl != null ? chg(h.pl / h.costV * 100) : "–"}</div></td>
+    <td class="num">${chg(h.m?.d1)}<div class="sm">YTD ${chg(h.m?.ytd)}</div></td></tr>`).join("");
 
   return `<section id="portfolio"><h2>พอร์ตของฉัน</h2>
   <div class="tiles">
@@ -295,8 +307,8 @@ function portfolioHTML(p) {
       <div class="legend">${order.map(h => `<div class="row"><span class="sw" style="background:${colorOf[h.code]}"></span>${esc(h.code)}<span class="pct num">${fmt(h.value, 0)} · ${fmt(h.value / total * 100, 1)}%</span></div>`).join("")}</div>
     </div>
   </div>
-  <div class="card tbl-wrap" style="margin-top:12px"><table>
-    <thead><tr><th data-k="name">กองทุน</th><th class="nosort">หน่วย</th><th class="nosort">ทุน/หน่วย</th><th class="nosort">NAV</th><th data-k="value">มูลค่า</th><th data-k="pl">กำไร/ขาดทุน</th><th data-k="plp">%</th><th data-k="d1">1 วัน</th><th data-k="ytd">YTD</th><th class="nosort">3 เดือน</th></tr></thead>
+  <div class="card" style="margin-top:12px"><table class="ptbl">
+    <thead><tr><th data-k="name">รายการ</th><th class="nosort c-units">หน่วย / ทุน</th><th class="nosort c-nav">ราคา/NAV</th><th data-k="value">มูลค่า (บาท)</th><th data-k="pl">กำไร/ขาดทุน</th><th data-k="d1">1 วัน</th></tr></thead>
     <tbody>${rows}</tbody></table></div>
   </section>`;
 }
