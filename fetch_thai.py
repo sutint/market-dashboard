@@ -15,7 +15,7 @@ REPO = "sutint/market-dashboard"
 
 def run(*cmd, **kw):
     print("$", " ".join(cmd))
-    return subprocess.run(cmd, cwd=build.ROOT, check=True, text=True, **kw)
+    return subprocess.run(cmd, cwd=build.ROOT, check=True, **kw)
 
 
 def main():
@@ -40,7 +40,8 @@ def main():
     run("git", "push", "-q")
 
     # Keep the portfolio secret in sync with the local portfolio.json
-    run("gh", "secret", "set", "PORTFOLIO_JSON", "-R", REPO, input=portfolio_text)
+    # Pass UTF-8 bytes: Windows would otherwise encode the Thai text in its ANSI codepage
+    run("gh", "secret", "set", "PORTFOLIO_JSON", "-R", REPO, input=portfolio_text.encode("utf-8"))
     run("gh", "workflow", "run", "daily.yml", "-R", REPO)
     print("done")
 
