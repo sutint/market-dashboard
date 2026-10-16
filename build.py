@@ -245,7 +245,7 @@ def build_watchlists(config):
             time.sleep(0.3)
         sections.append({"id": sec["id"], "title": sec["title"], "rows": rows})
         print(f"  {sec['id']}: {sum(1 for r in rows if r['m'])}/{len(rows)}")
-    if snaps:
+    if snaps and os.environ.get("GITHUB_ACTIONS"):  # only Actions records history, avoiding git conflicts
         SNAP_FILE.parent.mkdir(exist_ok=True)
         SNAP_FILE.write_text(json.dumps(snaps, indent=1, sort_keys=True), encoding="utf-8")
     return sections
