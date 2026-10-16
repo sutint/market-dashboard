@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Market Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f4f3ef; --surface: #fcfcfb; --surface-2: #f0efec; --border: #e2e0da;
+  --text: #0b0b0b; --text-2: #52514e; --muted: #85837d;
+  --up: #0a7d0a; --down: #c62f2f; --accent: #2a78d6;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7; --s8:#e34948;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111110; --surface: #1a1a19; --surface-2: #252523; --border: #33332f;
+    --text: #ffffff; --text-2: #c3c2b7; --muted: #8d8c84;
+    --up: #4cc94c; --down: #ff7b72; --accent: #3987e5;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111110; --surface: #1a1a19; --surface-2: #252523; --border: #33332f;
+  --text: #ffffff; --text-2: #c3c2b7; --muted: #8d8c84;
+  --up: #4cc94c; --down: #ff7b72; --accent: #3987e5;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--text); font: 15px/1.5 "IBM Plex Sans Thai", system-ui, sans-serif; }
+.num { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px 48px; }
+header { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
+header .wrap { display: flex; align-items: center; gap: 16px; padding-top: 12px; padding-bottom: 12px; flex-wrap: wrap; }
+header h1 { font-size: 18px; margin: 0; font-weight: 600; }
+header .upd { color: var(--muted); font-size: 13px; }
+nav { display: flex; gap: 4px; flex-wrap: wrap; margin-left: auto; }
+nav a, .btn { color: var(--text-2); text-decoration: none; font-size: 13px; padding: 4px 10px; border-radius: 6px; border: 1px solid transparent; background: none; cursor: pointer; font-family: inherit; }
+nav a:hover, .btn:hover { background: var(--surface-2); color: var(--text); }
+section { margin-top: 28px; scroll-margin-top: 70px; }
+h2 { font-size: 17px; font-weight: 600; margin: 0 0 12px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.tile .lbl { color: var(--text-2); font-size: 13px; }
+.tile .val { font-size: 22px; font-weight: 500; margin-top: 2px; }
+.tile .sub { font-size: 13px; margin-top: 2px; }
+.up { color: var(--up); } .down { color: var(--down); } .flat { color: var(--muted); }
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: right; font-weight: 500; color: var(--muted); font-size: 12px; padding: 6px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; }
+th:first-child, td:first-child { text-align: left; }
+th.nosort { cursor: default; }
+th[data-dir="asc"]::after { content: " ▲"; } th[data-dir="desc"]::after { content: " ▼"; }
+td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: var(--surface-2); }
+td .nm { font-weight: 500; } td .sm { color: var(--muted); font-size: 12px; }
+td.spark { width: 130px; padding-top: 4px; padding-bottom: 4px; }
+.grid2 { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 900px) { .grid2 { grid-template-columns: 1.4fr 1fr; } }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.tip { position: fixed; pointer-events: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 12px; box-shadow: 0 4px 16px rgb(0 0 0 / .12); z-index: 20; display: none; white-space: nowrap; }
+.tip b { font-weight: 500; }
+.alloc { display: flex; gap: 2px; height: 28px; margin: 4px 0 14px; }
+.alloc div { height: 100%; min-width: 2px; }
+.alloc div:first-child { border-radius: 4px 0 0 4px; } .alloc div:last-child { border-radius: 0 4px 4px 0; }
+.legend { display: grid; gap: 6px; font-size: 13px; }
+.legend .row { display: flex; align-items: center; gap: 8px; }
+.legend .sw { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.legend .pct { margin-left: auto; color: var(--text-2); }
+.note { color: var(--muted); font-size: 12px; margin-top: 10px; }
+.warn { color: var(--down); font-size: 12px; }
+#lock { display: grid; place-items: center; min-height: 80vh; }
+#lock form { display: grid; gap: 10px; width: min(320px, 100%); }
+#lock input { font: inherit; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+#lock button { font: inherit; padding: 10px; border-radius: 8px; border: 0; background: var(--accent); color: #fff; cursor: pointer; }
+#lock label { font-size: 13px; color: var(--text-2); display: flex; gap: 6px; align-items: center; }
+.ax { fill: var(--muted); font-size: 11px; font-family: "IBM Plex Mono", monospace; }
+</style>
+</head>
+<body>
+<div id="lock" hidden>
+  <form id="lockform">
+    <h1 style="margin:0;font-size:20px">Market Dashboard</h1>
+    <input id="pw" type="password" placeholder="รหัสผ่าน" autocomplete="current-password" autofocus>
+    <label><input type="checkbox" id="remember" checked> จำรหัสผ่านในเครื่องนี้</label>
+    <button>เปิดดู</button>
+    <div id="pwerr" class="warn"></div>
+  </form>
+</div>
+<div id="app" hidden></div>
+<div class="tip" id="tip"></div>
+
+<script>
+const BLOB = /*__DATA__*/null;
+const $ = (s, el = document) => el.querySelector(s);
+const tip = $("#tip");
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
+};
+
+// ---------- decrypt ----------
+const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function decrypt(enc, password) {
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+  const key = await crypto.subtle.deriveKey({ name: "PBKDF2", salt: b64(enc.salt), iterations: enc.iter, hash: "SHA-256" },
+    base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(enc.iv) }, key, b64(enc.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+async function start() {
+  if (BLOB.plain) return render(BLOB.plain);
+  const saved = store.get("dash-pw");
+  if (saved) { try { return render(await decrypt(BLOB.enc, saved)); } catch { store.del("dash-pw"); } }
+  $("#lock").hidden = false;
+  $("#lockform").onsubmit = async e => {
+    e.preventDefault();
+    const pw = $("#pw").value;
+    try {
+      const data = await decrypt(BLOB.enc, pw);
+      if ($("#remember").checked) store.set("dash-pw", pw);
+      $("#lock").hidden = true;
+      render(data);
+    } catch { $("#pwerr").textContent = "รหัสผ่านไม่ถูกต้อง"; }
+  };
+}
+
+// ---------- formatting ----------
+const fmt = (v, d = 2) => v == null ? "–" : v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+const autoDigits = v => v == null ? 2 : Math.abs(v) >= 1000 ? 2 : Math.abs(v) >= 1 ? 2 : Math.abs(v) >= 0.01 ? 4 : 6;
+const cls = v => v == null || Math.abs(v) < 0.005 ? "flat" : v > 0 ? "up" : "down";
+const chg = (v, suffix = "%") => v == null ? `<span class="flat">–</span>`
+  : `<span class="${cls(v)}">${v > 0.005 ? "▲" : v < -0.005 ? "▼" : ""} ${fmt(Math.abs(v))}${suffix}</span>`;
+const signed = v => v == null ? "–" : `<span class="${cls(v)}">${v > 0 ? "+" : v < 0 ? "−" : ""}${fmt(Math.abs(v))}</span>`;
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const thDate = iso => iso ? new Date(iso + "T00:00:00").toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" }) : "–";
+
+// ---------- line chart (sparkline + full) with hover ----------
+function lineChart(el, pts, { h = 34, axis = false, color = "var(--accent)", label = "", digits = 2 } = {}) {
+  if (!pts || pts.length < 2) { el.innerHTML = `<span class="flat">–</span>`; return; }
+  const w = el.clientWidth || 120;
+  const padL = axis ? 4 : 1, padR = axis ? 64 : 1, padT = axis ? 10 : 3, padB = axis ? 22 : 3;
+  const vs = pts.map(p => p[1]);
+  let lo = Math.min(...vs), hi = Math.max(...vs);
+  if (hi === lo) { hi += 1; lo -= 1; }
+  const x = i => padL + (i / (pts.length - 1)) * (w - padL - padR);
+  const y = v => padT + (1 - (v - lo) / (hi - lo)) * (h - padT - padB);
+  const d = pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p[1]).toFixed(1)}`).join("");
+  let grid = "";
+  if (axis) {
+    for (let k = 0; k <= 3; k++) {
+      const v = lo + (hi - lo) * k / 3, yy = y(v);
+      grid += `<line x1="${padL}" x2="${w - padR}" y1="${yy}" y2="${yy}" stroke="var(--border)" stroke-width="1"/>
+               <text class="ax" x="${w - padR + 6}" y="${yy + 4}">${fmt(v, 0)}</text>`;
+    }
+    const ticks = [0, Math.floor(pts.length / 2), pts.length - 1];
+    grid += ticks.map((i, n) => `<text class="ax" x="${x(i)}" y="${h - 4}" text-anchor="${["start", "middle", "end"][n]}">${thDate(pts[i][0])}</text>`).join("");
+  }
+  el.innerHTML = `<svg viewBox="0 0 ${w} ${h}" height="${h}">${grid}
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="${axis ? 2 : 1.5}" stroke-linejoin="round" stroke-linecap="round"/>
+    <line class="xh" y1="${padT}" y2="${h - padB}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="2 2" visibility="hidden"/>
+    <circle class="dot" r="4" fill="${color}" stroke="var(--surface)" stroke-width="2" visibility="hidden"/>
+    <rect x="0" y="0" width="${w}" height="${h}" fill="transparent"/></svg>`;
+  const svg = el.firstChild, xh = $(".xh", svg), dot = $(".dot", svg);
+  const move = e => {
+    const r = svg.getBoundingClientRect();
+    const px = (e.clientX - r.left) * (w / r.width);
+    const i = Math.max(0, Math.min(pts.length - 1, Math.round((px - padL) / (w - padL - padR) * (pts.length - 1))));
+    const cx = x(i), cy = y(pts[i][1]);
+    xh.setAttribute("x1", cx); xh.setAttribute("x2", cx); xh.setAttribute("visibility", "visible");
+    dot.setAttribute("cx", cx); dot.setAttribute("cy", cy); dot.setAttribute("visibility", "visible");
+    tip.innerHTML = `${label ? esc(label) + "<br>" : ""}<span style="color:var(--text-2)">${thDate(pts[i][0])}</span> <b class="num">${fmt(pts[i][1], digits)}</b>`;
+    tip.style.display = "block";
+    const tx = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8);
+    tip.style.left = tx + "px"; tip.style.top = (e.clientY - tip.offsetHeight - 10) + "px";
+  };
+  const leave = () => { tip.style.display = "none"; xh.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); };
+  svg.addEventListener("pointermove", move);
+  svg.addEventListener("pointerleave", leave);
+}
+
+// ---------- sortable tables ----------
+function sortable(table) {
+  table.querySelectorAll("th[data-k]").forEach(th => th.onclick = () => {
+    const k = th.dataset.k, dir = th.dataset.dir === "desc" ? "asc" : "desc";
+    table.querySelectorAll("th").forEach(t => delete t.dataset.dir);
+    th.dataset.dir = dir;
+    const body = table.tBodies[0];
+    [...body.rows].sort((a, b) => {
+      const va = a.dataset[k], vb = b.dataset[k];
+      const na = parseFloat(va), nb = parseFloat(vb);
+      const r = isNaN(na) || isNaN(nb) ? String(va).localeCompare(String(vb)) : na - nb;
+      return dir === "asc" ? r : -r;
+    }).forEach(r => body.appendChild(r));
+  });
+}
+
+// ---------- render ----------
+function render(data) {
+  const app = $("#app");
+  const secs = data.sections;
+  const hasPort = data.portfolio && data.portfolio.holdings && data.portfolio.holdings.length;
+  app.innerHTML = `
+  <header><div class="wrap">
+    <h1>Market Dashboard</h1>
+    <span class="upd">อัปเดต ${esc(data.generated)} น.</span>
+    <nav>${hasPort ? `<a href="#portfolio">พอร์ต</a>` : ""}${secs.map(s => `<a href="#${s.id}">${esc(s.title.split(" (")[0])}</a>`).join("")}
+      ${BLOB.enc ? `<button class="btn" id="logout" title="ลืมรหัสผ่านในเครื่องนี้">ล็อก</button>` : ""}</nav>
+  </div></header>
+  <div class="wrap">
+    ${hasPort ? portfolioHTML(data.portfolio) : ""}
+    ${secs.map(sectionHTML).join("")}
+    <p class="note">ข้อมูลตลาดจาก Yahoo Finance · NAV กองทุนจาก Finnomena · ราคาทองไทยจากสมาคมค้าทองคำ · ราคาอาจล่าช้า ใช้เพื่อติดตามเท่านั้น ไม่ใช่คำแนะนำการลงทุน</p>
+  </div>`;
+  app.hidden = false;
+  if ($("#logout")) $("#logout").onclick = () => { store.del("dash-pw"); location.reload(); };
+  document.querySelectorAll("[data-spark]").forEach(el => {
+    const [kind, i, j] = el.dataset.spark.split(":").map((v, n) => n ? +v : v);
+    const row = kind === "f" ? data.portfolio.holdings[i] : secs[i].rows[j];
+    lineChart(el, row.spark, { label: row.code || row.name, digits: autoDigits(row.m?.last) });
+  });
+  if (hasPort) {
+    const el = $("#pchart");
+    if (el) lineChart(el, data.portfolio.history, { h: 220, axis: true, label: "มูลค่ากองทุนรวม + ทอง (ไม่รวม PVD)", digits: 0 });
+  }
+  document.querySelectorAll("table").forEach(sortable);
+  let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => render(data), 200); }, { once: true });
+}
+
+function sectionHTML(sec, i) {
+  const rows = sec.rows.map((r, j) => {
+    const m = r.m || {};
+    return `<tr data-name="${esc(r.name)}" data-last="${m.last ?? ""}" data-d1="${m.d1 ?? -1e9}" data-m1="${m.m1 ?? -1e9}" data-ytd="${m.ytd ?? -1e9}" data-y1="${m.y1 ?? -1e9}">
+      <td><div class="nm">${esc(r.name)}</div><div class="sm">${esc(r.sub || r.symbol)}</div></td>
+      <td class="num">${fmt(m.last, autoDigits(m.last))}</td>
+      <td class="num">${chg(m.d1)}</td><td class="num">${chg(m.m1)}</td><td class="num">${chg(m.ytd)}</td><td class="num">${chg(m.y1)}</td>
+      <td class="spark"><div class="chart" data-spark="s:${i}:${j}"></div></td></tr>`;
+  }).join("");
+  return `<section id="${sec.id}"><h2>${esc(sec.title)}</h2><div class="card tbl-wrap"><table>
+    <thead><tr><th data-k="name">ชื่อ</th><th data-k="last">ล่าสุด</th><th data-k="d1">1 วัน</th><th data-k="m1">1 เดือน</th><th data-k="ytd">YTD</th><th data-k="y1">1 ปี</th><th class="nosort">3 เดือน</th></tr></thead>
+    <tbody>${rows}</tbody></table></div></section>`;
+}
+
+function portfolioHTML(p) {
+  const H = p.holdings.map(h => {
+    const value = h.nav != null ? h.nav * h.units : null;
+    const costV = h.cost_total != null ? h.cost_total : h.cost != null ? h.cost * h.units : null;
+    const pl = value != null && costV != null ? value - costV : null;
+    const day = h.m && h.m.d1 != null && value != null ? value - value / (1 + h.m.d1 / 100) : null;
+    return { ...h, value, costV, pl, day };
+  });
+  const sum = k => H.reduce((a, h) => a + (h[k] ?? 0), 0);
+  const total = sum("value");
+  const withCost = H.filter(h => h.costV != null && h.value != null);
+  const costT = withCost.reduce((a, h) => a + h.costV, 0), valCostT = withCost.reduce((a, h) => a + h.value, 0);
+  const plT = valCostT - costT, dayT = sum("day");
+  const order = [...H].filter(h => h.value).sort((a, b) => b.value - a.value);
+  const colors = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6", "--s7", "--s8"];
+  const colorOf = {}; order.forEach((h, i) => colorOf[h.code] = i < 8 ? `var(${colors[i]})` : "var(--muted)");
+  const missing = H.filter(h => !h.found);
+
+  const rows = H.map((h, i) => `<tr data-name="${esc(h.code)}" data-value="${h.value ?? 0}" data-pl="${h.pl ?? -1e15}" data-plp="${h.pl != null ? h.pl / h.costV * 100 : -1e9}" data-d1="${h.m?.d1 ?? -1e9}" data-ytd="${h.m?.ytd ?? -1e9}">
+    <td><div class="nm">${esc(h.code)}</div><div class="sm">${esc(h.name)}</div></td>
+    <td class="num">${fmt(h.units, 4)}</td>
+    <td class="num">${fmt(h.cost ?? (h.cost_total != null ? h.cost_total / h.units : null), 4)}</td>
+    <td class="num">${fmt(h.nav, 4)}<div class="sm">${thDate(h.nav_date)}${h.manual ? " · กรอกเอง" : ""}</div></td>
+    <td class="num">${fmt(h.value)}</td>
+    <td class="num">${signed(h.pl)}</td>
+    <td class="num">${h.pl != null ? chg(h.pl / h.costV * 100) : "–"}</td>
+    <td class="num">${chg(h.m?.d1)}</td>
+    <td class="num">${chg(h.m?.ytd)}</td>
+    <td class="spark"><div class="chart" data-spark="f:${i}"></div></td></tr>`).join("");
+
+  return `<section id="portfolio"><h2>พอร์ตของฉัน</h2>
+  <div class="tiles">
+    <div class="card tile"><div class="lbl">มูลค่ารวม (บาท)</div><div class="val num">${fmt(total)}</div><div class="sub">รวมกองทุนสำรองเลี้ยงชีพ</div></div>
+    <div class="card tile"><div class="lbl">กำไร/ขาดทุนรวม</div><div class="val num">${signed(plT)}</div><div class="sub num">${chg(costT ? plT / costT * 100 : null)} จากทุน ${fmt(costT, 0)}</div></div>
+    <div class="card tile"><div class="lbl">เปลี่ยนแปลงล่าสุด</div><div class="val num">${signed(dayT)}</div><div class="sub">ตาม NAV ล่าสุดของแต่ละกอง</div></div>
+  </div>
+  ${missing.length ? `<p class="warn">ไม่พบ NAV ของ: ${missing.map(h => esc(h.code)).join(", ")} — ตรวจสอบรหัสกองทุน</p>` : ""}
+  <div class="grid2">
+    <div class="card"><h2 style="font-size:14px;color:var(--text-2);font-weight:500">มูลค่ากองทุนรวม + ทอง 1 ปี (คิดจากจำนวนที่ถือปัจจุบัน ไม่รวม PVD)</h2><div class="chart" id="pchart"></div></div>
+    <div class="card"><h2 style="font-size:14px;color:var(--text-2);font-weight:500">สัดส่วนพอร์ต</h2>
+      <div class="alloc">${order.map(h => `<div style="flex:${h.value};background:${colorOf[h.code]}" title="${esc(h.code)} ${fmt(h.value / total * 100, 1)}%"></div>`).join("")}</div>
+      <div class="legend">${order.map(h => `<div class="row"><span class="sw" style="background:${colorOf[h.code]}"></span>${esc(h.code)}<span class="pct num">${fmt(h.value, 0)} · ${fmt(h.value / total * 100, 1)}%</span></div>`).join("")}</div>
+    </div>
+  </div>
+  <div class="card tbl-wrap" style="margin-top:12px"><table>
+    <thead><tr><th data-k="name">กองทุน</th><th class="nosort">หน่วย</th><th class="nosort">ทุน/หน่วย</th><th class="nosort">NAV</th><th data-k="value">มูลค่า</th><th data-k="pl">กำไร/ขาดทุน</th><th data-k="plp">%</th><th data-k="d1">1 วัน</th><th data-k="ytd">YTD</th><th class="nosort">3 เดือน</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>
+  </section>`;
+}
+
+start();
+</script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+{
+  "sections": [
+    {
+      "id": "indices",
+      "title": "ดัชนีหุ้นทั่วโลก",
+      "items": [
+        ["^GSPC", "S&P 500", "สหรัฐฯ"],
+        ["^IXIC", "Nasdaq Composite", "สหรัฐฯ"],
+        ["^DJI", "Dow Jones", "สหรัฐฯ"],
+        ["^SET.BK", "SET", "ไทย"],
+        ["^SET50.BK", "SET50", "ไทย"],
+        ["^N225", "Nikkei 225", "ญี่ปุ่น"],
+        ["^HSI", "Hang Seng", "ฮ่องกง"],
+        ["000001.SS", "Shanghai Composite", "จีน"],
+        ["000300.SS", "CSI 300", "จีน"],
+        ["^KS11", "KOSPI", "เกาหลีใต้"],
+        ["^TWII", "TAIEX", "ไต้หวัน"],
+        ["^NSEI", "Nifty 50", "อินเดีย"],
+        ["^VNINDEX.VN", "VN-Index", "เวียดนาม"],
+        ["^STI", "Straits Times", "สิงคโปร์"],
+        ["^GDAXI", "DAX", "เยอรมนี"],
+        ["^FTSE", "FTSE 100", "อังกฤษ"],
+        ["^STOXX50E", "Euro Stoxx 50", "ยุโรป"]
+      ]
+    },
+    {
+      "id": "macro",
+      "title": "ทองคำ น้ำมัน และค่าเงิน",
+      "items": [
+        ["GC=F", "ทองคำ (USD/oz)", "COMEX"],
+        ["SI=F", "เงิน (USD/oz)", "COMEX"],
+        ["CL=F", "น้ำมัน WTI (USD/bbl)", "NYMEX"],
+        ["BZ=F", "น้ำมัน Brent (USD/bbl)", "ICE"],
+        ["THB=X", "USD/THB", "ค่าเงิน"],
+        ["DX-Y.NYB", "Dollar Index", "ค่าเงิน"],
+        ["^TNX", "US 10Y Yield (%)", "พันธบัตร"],
+        ["^VIX", "VIX", "ความผันผวน"]
+      ]
+    },
+    {
+      "id": "crypto",
+      "title": "คริปโต (USD)",
+      "items": [
+        ["BTC-USD", "Bitcoin", "BTC"],
+        ["ETH-USD", "Ethereum", "ETH"],
+        ["XRP-USD", "XRP", "XRP"],
+        ["USDT-USD", "Tether", "USDT"],
+        ["DOGE-USD", "Dogecoin", "DOGE"]
+      ]
+    },
+    {
+      "id": "us",
+      "title": "หุ้นอเมริกา (USD)",
+      "items": [
+        ["AAPL", "Apple", ""],
+        ["MSFT", "Microsoft", ""],
+        ["NVDA", "NVIDIA", ""],
+        ["META", "Meta Platforms", ""],
+        ["TSLA", "Tesla", ""],
+        ["ASML", "ASML", ""],
+        ["V", "Visa", ""],
+        ["LLY", "Eli Lilly", ""],
+        ["EXK", "Endeavour Silver", ""],
+        ["SPCX", "SpaceX", ""]
+      ]
+    },
+    {
+      "id": "th",
+      "title": "หุ้นไทย (THB)",
+      "items": [
+        ["BBL.BK", "BBL", "ธนาคารกรุงเทพ"],
+        ["KBANK.BK", "KBANK", "ธนาคารกสิกรไทย"],
+        ["SCB.BK", "SCB", "เอสซีบี เอกซ์"],
+        ["KTB.BK", "KTB", "ธนาคารกรุงไทย"],
+        ["TTB.BK", "TTB", "ธนาคารทหารไทยธนชาต"],
+        ["BAM.BK", "BAM", "บริหารสินทรัพย์กรุงเทพพาณิชย์"],
+        ["HMPRO.BK", "HMPRO", "โฮม โปรดักส์ เซ็นเตอร์"],
+        ["GULF.BK", "GULF", "กัลฟ์ ดีเวลลอปเมนท์"],
+        ["BGRIM.BK", "BGRIM", "บี.กริม เพาเวอร์"],
+        ["ADVANC.BK", "ADVANC", "แอดวานซ์ อินโฟร์ เซอร์วิส"],
+        ["BDMS.BK", "BDMS", "กรุงเทพดุสิตเวชการ"],
+        ["BCH.BK", "BCH", "บางกอก เชน ฮอสปิทอล"]
+      ]
+    }
+  ]
+}

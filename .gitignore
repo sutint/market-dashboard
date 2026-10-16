@@ -1,0 +1,5 @@
+# Personal holdings: kept out of the repo, sent to Actions as the PORTFOLIO_JSON secret
+portfolio.json
+site/
+__pycache__/
+.claude/
