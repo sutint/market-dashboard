@@ -23,16 +23,19 @@ session.headers.update(UA)
 
 
 def get_json(url, tries=4):
+    last = None
     for i in range(tries):
         try:
             r = session.get(url, timeout=30)
             if r.status_code == 200:
                 return r.json()
+            last = f"HTTP {r.status_code}: {r.text[:120]!r}"
             if r.status_code == 404:
-                return None
-        except (requests.RequestException, ValueError):
-            pass
+                break
+        except (requests.RequestException, ValueError) as e:
+            last = repr(e)[:200]
         time.sleep(2 * (i + 1))
+    print(f"  ! request failed {url[:90]} -> {last}", file=sys.stderr)
     return None
 
 
