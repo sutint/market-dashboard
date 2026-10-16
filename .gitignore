@@ -3,3 +3,5 @@ portfolio.json
 site/
 __pycache__/
 .claude/
+.thai_key
+logs/

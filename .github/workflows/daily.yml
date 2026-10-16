@@ -32,6 +32,7 @@ jobs:
         env:
           DASHBOARD_PASSWORD: ${{ secrets.DASHBOARD_PASSWORD }}
           PORTFOLIO_JSON: ${{ secrets.PORTFOLIO_JSON }}
+          THAI_DATA_KEY: ${{ secrets.THAI_DATA_KEY }}
         run: |
           if [ -z "$DASHBOARD_PASSWORD" ]; then echo "DASHBOARD_PASSWORD secret is required"; exit 1; fi
           python build.py

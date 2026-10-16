@@ -141,14 +141,14 @@ def merge_snapshots(symbol, series, snaps):
     return sorted(merged.items())
 
 
-# ---------- Thai mutual funds (Finnomena public API) ----------
+# ---------- Thai data: fund NAVs (Finnomena) + gold (Gold Traders Association) ----------
+# Both sites block GitHub's servers, so a scheduled task on a home PC fetches them
+# (fetch_thai.py) and pushes an encrypted copy to data/thai.enc.json for Actions to use.
 
 FN = "https://www.finnomena.com/fn3/api/fund"
-
-
-def fund_index():
-    data = get_json(f"{FN}/public/list") or []
-    return {f["short_code"].upper(): f for f in data}
+GTA = "https://www.goldtraders.or.th/api/GoldPrices"
+THAI_FILE = ROOT / "data" / "thai.enc.json"
+KEY_FILE = ROOT / ".thai_key"
 
 
 def fund_series(fund_id):
@@ -160,8 +160,73 @@ def fund_series(fund_id):
     out = {}
     for n in navs:
         if n.get("value"):
-            out[dt.date.fromisoformat(n["date"][:10])] = n["value"]
+            out[n["date"][:10]] = n["value"]
     return sorted(out.items())
+
+
+def gold_series_live():
+    """Returns (latest, daily) for the Thai 96.5% gold bar price in THB per baht-weight."""
+    latest = get_json(f"{GTA}/Latest?readjson=false")
+    ohlc = get_json(f"{GTA}/ohlc?readjson=true") or []
+    cutoff = (dt.date.today() - dt.timedelta(days=800)).isoformat()
+    daily = {}
+    for row in ohlc:  # hourly rows, ascending: the last one of each day is its close
+        d = row["hour"][:10]
+        if d >= cutoff:
+            daily[d] = row["close"]
+    if latest:
+        daily[latest["asTime"][:10]] = latest["bL_SellPrice"]
+    return latest, sorted(daily.items())
+
+
+def fetch_thai_live(portfolio):
+    idx = {f["short_code"].upper(): f for f in (get_json(f"{FN}/public/list") or [])}
+    funds = {}
+    for f in portfolio.get("funds", []):
+        info = idx.get(f["code"].upper())
+        if info:
+            funds[f["code"]] = {"name": info["name_th"], "navs": fund_series(info["id"])}
+            time.sleep(0.3)
+    latest, gold = gold_series_live()
+    return {"fetched": dt.datetime.now(BKK).isoformat(timespec="minutes"),
+            "funds": funds, "gold_latest": latest, "gold": gold}
+
+
+def _key():
+    k = os.environ.get("THAI_DATA_KEY") or (KEY_FILE.read_text().strip() if KEY_FILE.exists() else None)
+    return base64.b64decode(k) if k else None
+
+
+def save_thai_cache(thai):
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    iv = os.urandom(12)
+    ct = AESGCM(_key()).encrypt(iv, json.dumps(thai, ensure_ascii=False).encode(), None)
+    THAI_FILE.parent.mkdir(exist_ok=True)
+    THAI_FILE.write_text(json.dumps({"iv": base64.b64encode(iv).decode(), "ct": base64.b64encode(ct).decode()}))
+
+
+def load_thai_cache():
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    blob = json.loads(THAI_FILE.read_text())
+    pt = AESGCM(_key()).decrypt(base64.b64decode(blob["iv"]), base64.b64decode(blob["ct"]), None)
+    return json.loads(pt)
+
+
+def thai_data(portfolio):
+    """Live on a home PC; the encrypted cache on GitHub Actions (THAI_DATA_KEY is set there)."""
+    if os.environ.get("THAI_DATA_KEY"):
+        try:
+            thai = load_thai_cache()
+            print(f"  using cached Thai data from {thai['fetched']}")
+            return thai
+        except (OSError, ValueError, KeyError) as e:
+            print(f"  ! cannot read {THAI_FILE.name}: {e!r}", file=sys.stderr)
+            return {"funds": {}, "gold_latest": None, "gold": []}
+    return fetch_thai_live(portfolio)
+
+
+def to_series(pairs):
+    return [(dt.date.fromisoformat(d), v) for d, v in pairs]
 
 
 # ---------- build ----------
@@ -186,28 +251,6 @@ def build_watchlists(config):
     return sections
 
 
-GTA = "https://www.goldtraders.or.th/api/GoldPrices"
-
-
-def thai_gold():
-    """Thai 96.5% gold bar price (THB per baht-weight) from the Gold Traders Association.
-
-    Returns (latest, series) where latest has bar buy/sell prices and series is the
-    daily closing price history."""
-    latest = get_json(f"{GTA}/Latest?readjson=false")
-    ohlc = get_json(f"{GTA}/ohlc?readjson=true") or []
-    cutoff = dt.date.today() - dt.timedelta(days=800)
-    daily = {}
-    for row in ohlc:  # hourly rows, ascending: the last one of each day is its close
-        d = dt.date.fromisoformat(row["hour"][:10])
-        if d >= cutoff:
-            daily[d] = row["close"]
-    if latest:
-        d = dt.date.fromisoformat(latest["asTime"][:10])
-        daily[d] = latest["bL_SellPrice"]
-    return latest, sorted(daily.items())
-
-
 def add_thai_gold_row(sections, latest, series):
     if not series:
         return
@@ -218,8 +261,8 @@ def add_thai_gold_row(sections, latest, series):
                                  "sub": sub, "m": metrics(series), "spark": spark(series)})
 
 
-def build_portfolio(portfolio, gold_latest, gold_series):
-    idx = fund_index()
+def build_portfolio(portfolio, thai):
+    gold_latest, gold_series = thai["gold_latest"], to_series(thai["gold"])
     holdings, history = [], {}
     for g in portfolio.get("gold", []):
         # Value at the association's bar buy-back price, i.e. what it would sell for today
@@ -234,15 +277,15 @@ def build_portfolio(portfolio, gold_latest, gold_series):
         for d, v in gold_series:
             history.setdefault(d, {})[holdings[-1]["code"]] = v * g["baht_weight"]
     for f in portfolio.get("funds", []):
-        info = idx.get(f["code"].upper())
-        s = fund_series(info["id"]) if info else []
+        info = thai["funds"].get(f["code"])
+        s = to_series(info["navs"]) if info else []
         if not s:
             print(f"  ! fund not found / no NAV: {f['code']}", file=sys.stderr)
         m = metrics(s)
         nav = m["last"] if m else None
         h = {
             "code": f["code"],
-            "name": info["name_th"] if info else "ไม่พบกองทุนนี้ – ตรวจสอบรหัส",
+            "name": info["name"] if info else "ไม่พบกองทุนนี้ – ตรวจสอบรหัส",
             "units": f["units"], "cost": f["cost"], "nav": nav,
             "nav_date": m["date"] if m else None, "m": m, "spark": spark(s),
             "found": bool(s),
@@ -250,7 +293,6 @@ def build_portfolio(portfolio, gold_latest, gold_series):
         holdings.append(h)
         for d, v in s:
             history.setdefault(d, {})[f["code"]] = v * f["units"]
-        time.sleep(0.3)
     for f in portfolio.get("manual", []):
         holdings.append({
             "code": f["code"], "name": f.get("name", f["code"]), "units": f["units"],
@@ -291,12 +333,12 @@ def main():
 
     print("Fetching watchlists…")
     sections = build_watchlists(config)
-    gold_latest, gold_series = thai_gold()
-    if not gold_series:
+    print("Fetching Thai funds and gold…")
+    thai = thai_data(portfolio)
+    if not thai["gold"]:
         print("  ! no Thai gold price", file=sys.stderr)
-    add_thai_gold_row(sections, gold_latest, gold_series)
-    print("Fetching funds…")
-    port = build_portfolio(portfolio, gold_latest, gold_series)
+    add_thai_gold_row(sections, thai["gold_latest"], to_series(thai["gold"]))
+    port = build_portfolio(portfolio, thai)
 
     data = {
         "generated": dt.datetime.now(BKK).strftime("%Y-%m-%d %H:%M"),
