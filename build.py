@@ -272,7 +272,7 @@ def build_portfolio(portfolio, thai):
             "code": g.get("code", "ทองคำแท่ง"), "name": g.get("name", "ทองคำแท่ง 96.5% (ราคารับซื้อ สมาคมค้าทองคำ)"),
             "units": g["baht_weight"], "cost": g["cost"], "nav": nav,
             "nav_date": gold_latest["asTime"][:10] if gold_latest else (m["date"] if m else None),
-            "m": m, "spark": spark(gold_series), "found": nav is not None,
+            "m": m, "spark": spark(gold_series), "found": nav is not None, "class": g.get("class", "ทองคำ"),
         })
         for d, v in gold_series:
             history.setdefault(d, {})[holdings[-1]["code"]] = v * g["baht_weight"]
@@ -292,6 +292,7 @@ def build_portfolio(portfolio, thai):
             "code": c["code"], "name": c.get("name", f"{c['code']} (ราคา USD × USD/THB)"),
             "units": c["units"], "cost": c["cost"], "nav": m["last"] if m else None,
             "nav_date": m["date"] if m else None, "m": m, "spark": spark(s), "found": bool(s),
+            "class": c.get("class", "คริปโต"),
         })
         for d, v in s:
             history.setdefault(d, {})[c["code"]] = v * c["units"]
@@ -307,7 +308,7 @@ def build_portfolio(portfolio, thai):
             "name": info["name"] if info else "ไม่พบกองทุนนี้ – ตรวจสอบรหัส",
             "units": f["units"], "cost": f["cost"], "nav": nav,
             "nav_date": m["date"] if m else None, "m": m, "spark": spark(s),
-            "found": bool(s),
+            "found": bool(s), "class": f.get("class", "กองทุนอื่นๆ"),
         }
         holdings.append(h)
         for d, v in s:
@@ -316,7 +317,7 @@ def build_portfolio(portfolio, thai):
         holdings.append({
             "code": f["code"], "name": f.get("name", f["code"]), "units": f["units"],
             "cost": f.get("cost"), "cost_total": f.get("cost_total"), "nav": f["nav"], "nav_date": f.get("nav_date"),
-            "m": None, "spark": [], "found": True, "manual": True,
+            "m": None, "spark": [], "found": True, "manual": True, "class": f.get("class", "อื่นๆ"),
         })
 
     # Value history of market-priced funds at today's units (forward-filled NAVs)
@@ -361,6 +362,7 @@ def main():
 
     data = {
         "generated": dt.datetime.now(BKK).strftime("%Y-%m-%d %H:%M"),
+        "thai_fetched": thai.get("fetched"),
         "portfolio": port,
         "sections": sections,
     }

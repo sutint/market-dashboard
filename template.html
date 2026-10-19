@@ -92,6 +92,13 @@ td.spark { width: 130px; padding-top: 4px; padding-bottom: 4px; }
 .legend .row { display: flex; align-items: center; gap: 8px; }
 .legend .sw { width: 10px; height: 10px; border-radius: 3px; flex: none; }
 .legend .pct { margin-left: auto; color: var(--text-2); }
+.legend .members { color: var(--muted); font-size: 11px; margin: -2px 0 2px 18px; }
+.stale { background: color-mix(in srgb, var(--down) 10%, var(--surface)); border: 1px solid color-mix(in srgb, var(--down) 35%, var(--border)); color: var(--text); border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-top: 16px; }
+.today { display: grid; gap: 10px; }
+.today .grp { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.today .lbl { color: var(--text-2); font-size: 12px; min-width: 68px; }
+.chip { display: inline-flex; gap: 6px; align-items: baseline; background: var(--surface-2); border-radius: 999px; padding: 3px 10px; font-size: 12.5px; white-space: nowrap; }
+.chip b { font-weight: 500; }
 .note { color: var(--muted); font-size: 12px; margin-top: 10px; }
 .warn { color: var(--down); font-size: 12px; }
 #lock { display: grid; place-items: center; min-height: 80vh; }
@@ -230,10 +237,12 @@ function render(data) {
   <header><div class="wrap">
     <h1>Market Dashboard</h1>
     <span class="upd">อัปเดต ${esc(data.generated)} น.</span>
-    <nav>${hasPort ? `<a href="#portfolio">พอร์ต</a>` : ""}${secs.map(s => `<a href="#${s.id}">${esc(s.title.split(" (")[0])}</a>`).join("")}
+    <nav><a href="#today">วันนี้</a>${hasPort ? `<a href="#portfolio">พอร์ต</a>` : ""}${secs.map(s => `<a href="#${s.id}">${esc(s.title.split(" (")[0])}</a>`).join("")}
       ${BLOB.enc ? `<button class="btn" id="logout" title="ลืมรหัสผ่านในเครื่องนี้">ล็อก</button>` : ""}</nav>
   </div></header>
   <div class="wrap">
+    ${staleHTML(data)}
+    ${todayHTML(data, hasPort)}
     ${hasPort ? portfolioHTML(data.portfolio) : ""}
     ${secs.map(sectionHTML).join("")}
     <p class="note">ข้อมูลตลาดจาก Yahoo Finance · NAV กองทุนจาก Finnomena · ราคาทองไทยจากสมาคมค้าทองคำ · ราคาอาจล่าช้า ใช้เพื่อติดตามเท่านั้น ไม่ใช่คำแนะนำการลงทุน</p>
@@ -251,6 +260,48 @@ function render(data) {
   }
   document.querySelectorAll("table").forEach(sortable);
   let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => render(data), 200); }, { once: true });
+}
+
+
+// ---------- stale Thai data warning ----------
+function staleHTML(data) {
+  if (!data.thai_fetched) return "";
+  const t = new Date(data.thai_fetched);
+  const hours = (Date.now() - t) / 36e5;
+  if (!(hours > 36)) return "";
+  const when = t.toLocaleString("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return `<div class="stale">⚠ NAV กองทุนและราคาทองไม่ได้อัปเดตมา ${fmt(hours / 24, 0)} วัน (ล่าสุด ${esc(when)} น.) — คอมที่บ้านอาจปิดอยู่หรือ sign out</div>`;
+}
+
+// ---------- today summary ----------
+const TODAY_MARKETS = [["^GSPC", "S&P 500"], ["^IXIC", "Nasdaq"], ["^SET.BK", "SET"], ["GTA", "ทองไทย"], ["BTC-USD", "BTC"], ["THB=X", "USD/THB"]];
+const chip = (name, v) => `<span class="chip"><b>${esc(name)}</b><span class="num">${chg(v)}</span></span>`;
+function movers(items, n = 2) {
+  const live = items.filter(x => x.v != null && Math.abs(x.v) >= 0.005);
+  const up = live.filter(x => x.v > 0).sort((a, b) => b.v - a.v).slice(0, n);
+  const down = live.filter(x => x.v < 0).sort((a, b) => a.v - b.v).slice(0, n);
+  return [...up, ...down];
+}
+function todayHTML(data, hasPort) {
+  const rows = data.sections.flatMap(s => s.rows.map(r => ({ ...r, sec: s.id })));
+  const by = Object.fromEntries(rows.map(r => [r.symbol, r]));
+  const mk = TODAY_MARKETS.filter(([s]) => by[s]?.m).map(([s, n]) => chip(n, by[s].m.d1)).join("");
+  const stocks = movers(rows.filter(r => r.sec === "us" || r.sec === "th").map(r => ({ n: r.sec === "th" ? r.name : r.symbol, v: r.m?.d1 })));
+  let port = "";
+  if (hasPort) {
+    const hs = data.portfolio.holdings;
+    const day = hs.reduce((a, h) => {
+      const v = h.nav != null ? h.nav * h.units : null;
+      return a + (h.m?.d1 != null && v != null ? v - v / (1 + h.m.d1 / 100) : 0);
+    }, 0);
+    const pm = movers(hs.map(h => ({ n: h.code, v: h.m?.d1 })));
+    port = `<div class="grp"><span class="lbl">พอร์ต</span><span class="chip"><b>รวม</b><span class="num">${signed(day, 0)} บาท</span></span>${pm.map(x => chip(x.n, x.v)).join("")}</div>`;
+  }
+  return `<section id="today"><h2>สรุปวันนี้</h2><div class="card today">
+    ${port}
+    <div class="grp"><span class="lbl">ตลาด</span>${mk}</div>
+    ${stocks.length ? `<div class="grp"><span class="lbl">หุ้นเด่น</span>${stocks.map(x => chip(x.n, x.v)).join("")}</div>` : ""}
+  </div></section>`;
 }
 
 function sectionHTML(sec, i) {
@@ -280,9 +331,14 @@ function portfolioHTML(p) {
   const withCost = H.filter(h => h.costV != null && h.value != null);
   const costT = withCost.reduce((a, h) => a + h.costV, 0), valCostT = withCost.reduce((a, h) => a + h.value, 0);
   const plT = valCostT - costT, dayT = sum("day");
-  const order = [...H].filter(h => h.value).sort((a, b) => b.value - a.value);
+  // Asset classes keep a fixed order, so each class always wears the same color
+  const CLASSES = ["เงินสด", "ตราสารหนี้และตลาดเงิน", "หุ้นต่างประเทศ", "ทองคำ", "คริปโต", "กองทุนสำรองเลี้ยงชีพ"];
   const colors = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6", "--s7", "--s8"];
-  const colorOf = {}; order.forEach((h, i) => colorOf[h.code] = i < 8 ? `var(${colors[i]})` : "var(--muted)");
+  const groups = {};
+  H.filter(h => h.value).forEach(h => (groups[h.class || "อื่นๆ"] ??= []).push(h));
+  const names = [...CLASSES.filter(c => groups[c]), ...Object.keys(groups).filter(c => !CLASSES.includes(c))];
+  const G = names.map((c, i) => ({ name: c, color: i < 8 ? `var(${colors[i]})` : "var(--muted)",
+    value: groups[c].reduce((a, h) => a + h.value, 0), members: groups[c].sort((a, b) => b.value - a.value) }));
   const missing = H.filter(h => !h.found);
 
   const rows = H.map((h, i) => `<tr data-name="${esc(h.code)}" data-value="${h.value ?? 0}" data-pl="${h.pl ?? -1e15}" data-plp="${h.pl != null ? h.pl / h.costV * 100 : -1e9}" data-d1="${h.m?.d1 ?? -1e9}" data-ytd="${h.m?.ytd ?? -1e9}">
@@ -302,9 +358,10 @@ function portfolioHTML(p) {
   ${missing.length ? `<p class="warn">ไม่พบ NAV ของ: ${missing.map(h => esc(h.code)).join(", ")} — ตรวจสอบรหัสกองทุน</p>` : ""}
   <div class="grid2">
     <div class="card"><h2 style="font-size:14px;color:var(--text-2);font-weight:500">มูลค่ากองทุนรวม ทอง และคริปโต 1 ปี (คิดจากจำนวนที่ถือปัจจุบัน ไม่รวม PVD)</h2><div class="chart" id="pchart"></div></div>
-    <div class="card"><h2 style="font-size:14px;color:var(--text-2);font-weight:500">สัดส่วนพอร์ต</h2>
-      <div class="alloc">${order.map(h => `<div style="flex:${h.value};background:${colorOf[h.code]}" title="${esc(h.code)} ${fmt(h.value / total * 100, 1)}%"></div>`).join("")}</div>
-      <div class="legend">${order.map(h => `<div class="row"><span class="sw" style="background:${colorOf[h.code]}"></span>${esc(h.code)}<span class="pct num">${fmt(h.value, 0)} · ${fmt(h.value / total * 100, 1)}%</span></div>`).join("")}</div>
+    <div class="card"><h2 style="font-size:14px;color:var(--text-2);font-weight:500">สัดส่วนตามประเภททรัพย์สิน</h2>
+      <div class="alloc">${G.map(g => `<div style="flex:${g.value};background:${g.color}" title="${esc(g.name)} ${fmt(g.value / total * 100, 1)}%"></div>`).join("")}</div>
+      <div class="legend">${G.map(g => `<div><div class="row"><span class="sw" style="background:${g.color}"></span>${esc(g.name)}<span class="pct num">${fmt(g.value, 0)} · ${fmt(g.value / total * 100, 1)}%</span></div>
+        <div class="members">${g.members.map(h => `${esc(h.code)} ${fmt(h.value / total * 100, 1)}%`).join(" · ")}</div></div>`).join("")}</div>
     </div>
   </div>
   <div class="card" style="margin-top:12px"><table class="ptbl">
